@@ -1,4 +1,4 @@
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/taxtech/valuex
+# gazelle:prefix github.com/dayfine/pdf-crawler
 gazelle(name = "gazelle")
