@@ -2,8 +2,13 @@ package crawler
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"path/filepath"
+	"strings"
+
+	"golang.org/x/net/html"
 )
 
 var ignoredFileExts = []string{".mp3", ".wav", ".mkv", ".flv", ".vob", ".ogv", ".ogg", ".png", ".jpg", ".gif", ".avi", ".mov", ".wmv", ".mp4", ".mp3", ".mpg"}
@@ -50,13 +55,21 @@ func (c *CrawlerImpl) Crawl(param CrawlParameters) {
 		return
 	}
 
-	fetchResult, err := c.fetcher.Fetch(param.InputUrl)
+	resp, err := c.fetcher.Fetch(param.InputUrl)
 	if err != nil {
 		log.Println(err)
 		return
 	}
+	contentType := getContetType(resp)
+	fmt.Printf("URL: [%s], CT: [%s]\n", param.InputUrl, contentType)
+	if contentType == "application/pdf" {
+		fmt.Println("Should download it here / Call handler")
+		return
+	} else if !isWebpage(contentType) {
+		return
+	}
 
-	for _, url := range fetchResult.Urls {
+	for _, url := range getUrls(param.InputUrl, resp) {
 		crawlParam := CrawlParameters{
 			InputUrl: url,
 			Depth:    param.Depth - 1,
@@ -84,4 +97,44 @@ func (c *CrawlerImpl) PrintAllProcessed() {
 	for url, _ := range c.processed {
 		fmt.Println(url)
 	}
+}
+
+func getUrls(url string, resp *http.Response) []string {
+	tokenizer := html.NewTokenizer(resp.Body)
+	var urls []string
+	for {
+		token_type := tokenizer.Next()
+		if token_type == html.ErrorToken {
+			if err := tokenizer.Err(); err != io.EOF {
+				log.Print(err)
+			}
+			return urls
+		}
+
+		switch token_type {
+		case html.StartTagToken, html.SelfClosingTagToken:
+			if path := getPath(tokenizer.Token()); path != "" {
+				urls = append(urls, toUrl(url, path))
+			}
+		}
+	}
+}
+
+func getPath(token html.Token) string {
+	for _, attr := range token.Attr {
+		switch attr.Key {
+		case "href", "src":
+			return strings.TrimSpace(attr.Val)
+		}
+	}
+	return ""
+}
+
+func getContetType(resp *http.Response) string {
+	ct := resp.Header.Get("Content-Type")
+	return strings.Split(ct, ";")[0]
+}
+
+func isWebpage(contentType string) bool {
+	return contentType == "text/html" || strings.Contains(contentType, "text/html")
 }
