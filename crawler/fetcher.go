@@ -9,12 +9,14 @@ import (
 )
 
 type FetchResult struct {
-	Urls []string
+	PageUrl     string
+	ContentType string
+	Urls        []string
 }
 
 type UrlFetcher interface {
 	// Returns slice of URLs on the page of requested URL.
-	Fetch(url string) (result *FetchResult, err error)
+	Fetch(url string) (*FetchResult, error)
 }
 
 func NewUrlFetcher() UrlFetcher {
@@ -28,12 +30,19 @@ type PlainUrlFetcher struct {
 func (f *PlainUrlFetcher) Fetch(url string) (*FetchResult, error) {
 	// TODO(dayfine): use channel / go routine
 	resp, err := http.Get(url)
-	if err != nil || !shouldAnalyze(resp) {
+	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	result := &FetchResult{}
+	result := &FetchResult{
+		PageUrl:     url,
+		ContentType: getContetType(resp),
+	}
+	if !shouldAnalyze(result) {
+		return result, nil
+	}
+
 	tokenizer := html.NewTokenizer(resp.Body)
 	for {
 		token_type := tokenizer.Next()
@@ -55,14 +64,16 @@ func (f *PlainUrlFetcher) Fetch(url string) (*FetchResult, error) {
 
 // A UrlFetcher that finds URLs by rendering any JavaScript.
 type RenderedUrlFetcher struct {
+	// TODO(dayfine): implement this
 }
 
 // A UrlFetcher that finds URLs by rendering any JavaScript and click around.
 type ClickUrlFetcher struct {
+	// TODO(dayfine): implement this
 }
 
-func shouldAnalyze(resp *http.Response) bool {
-	return isWebpage(getContetType(resp))
+func shouldAnalyze(result *FetchResult) bool {
+	return isWebpage(result.ContentType)
 }
 
 func getContetType(resp *http.Response) string {

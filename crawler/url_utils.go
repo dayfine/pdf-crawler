@@ -38,3 +38,11 @@ func toUrl(base string, urlPath string) string {
 	}
 	return result.String()
 }
+
+func isSameHost(curr string, next string) bool {
+	currUrl, _ := url.Parse(toUrl(curr, ""))
+	nextUrl, _ := url.Parse(toUrl(next, ""))
+	currDomain := strings.Split(currUrl.Host, ":")[0]
+	nextDomain := strings.Split(nextUrl.Host, ":")[0]
+	return currDomain == nextDomain
+}
