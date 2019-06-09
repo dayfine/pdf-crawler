@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-var ignoredFileExts = []string{".mp3", ".wav", ".mkv", ".flv", ".vob", ".ogv", ".ogg", ".gif", ".avi", ".mov", ".wmv", ".mp4", ".mp3", ".mpg"}
+var ignoredFileExts = []string{".mp3", ".wav", ".mkv", ".flv", ".vob", ".ogv", ".ogg", ".png", ".jpg", ".gif", ".avi", ".mov", ".wmv", ".mp4", ".mp3", ".mpg"}
 
 type CrawlParameters struct {
 	InputUrl string
