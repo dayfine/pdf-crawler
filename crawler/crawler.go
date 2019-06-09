@@ -12,7 +12,7 @@ func Crawl(initialUrl string, saveDir string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Fetched: %v\n", fetchResult)
+	fmt.Printf("Fetched: %+v\n", fetchResult)
 }
 
 func init() {

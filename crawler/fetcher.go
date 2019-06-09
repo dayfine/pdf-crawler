@@ -9,30 +9,23 @@ import (
 )
 
 type FetchResult struct {
-	Body string
 	Urls []string
 }
 
 type UrlFetcher interface {
-	// Returns the body of URL and a slice of URLs on that page
+	// Returns slice of URLs on the page of requested URL.
 	Fetch(url string) (result *FetchResult, err error)
 }
 
 func NewUrlFetcher() UrlFetcher {
-	return &UrlFetchImpl{}
+	return &PlainUrlFetcher{}
 }
 
-type UrlFetchImpl struct {
-	proccessed map[string]bool
+// A UrlFetcher that simply finds URLs on the HTML page.
+type PlainUrlFetcher struct {
 }
 
-func (f *UrlFetchImpl) Fetch(url string) (*FetchResult, error) {
-	// _, seen := f.proccessed[url]
-	// if seen {
-	// 	return nil, nil
-	// }
-	// f.proccessed[url] = true
-
+func (f *PlainUrlFetcher) Fetch(url string) (*FetchResult, error) {
 	// TODO(dayfine): use channel / go routine
 	resp, err := http.Get(url)
 	if err != nil || !shouldAnalyze(resp) {
@@ -41,12 +34,6 @@ func (f *UrlFetchImpl) Fetch(url string) (*FetchResult, error) {
 	defer resp.Body.Close()
 
 	result := &FetchResult{}
-	// bodyBytes, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// result.Body = string(bodyBytes)
-
 	tokenizer := html.NewTokenizer(resp.Body)
 	for {
 		token_type := tokenizer.Next()
@@ -60,14 +47,27 @@ func (f *UrlFetchImpl) Fetch(url string) (*FetchResult, error) {
 		switch token_type {
 		case html.StartTagToken, html.SelfClosingTagToken:
 			if path := getPath(tokenizer.Token()); path != "" {
-				result.Urls = append(result.Urls, buildUrlFromPath(path))
+				result.Urls = append(result.Urls, toUrl(url, path))
 			}
 		}
 	}
 }
 
+// A UrlFetcher that finds URLs by rendering any JavaScript.
+type RenderedUrlFetcher struct {
+}
+
+// A UrlFetcher that finds URLs by rendering any JavaScript and click around.
+type ClickUrlFetcher struct {
+}
+
 func shouldAnalyze(resp *http.Response) bool {
-	return isWebpage(resp.Header.Get("Content-Type"))
+	return isWebpage(getContetType(resp))
+}
+
+func getContetType(resp *http.Response) string {
+	ct := resp.Header.Get("Content-Type")
+	return strings.Split(ct, ";")[0]
 }
 
 func isWebpage(contentType string) bool {
@@ -82,8 +82,4 @@ func getPath(token html.Token) string {
 		}
 	}
 	return ""
-}
-
-func buildUrlFromPath(path string) string {
-	return path
 }
