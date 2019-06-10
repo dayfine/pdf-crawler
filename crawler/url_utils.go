@@ -22,11 +22,12 @@ func toUrl(base string, urlPath string) string {
 		}
 	} else {
 		result = baseUrl
-		if shouldPathBeIgnored(result.Path) {
+		if shouldPathBeIgnored(result.Path) || strings.HasPrefix(urlPath, "/") {
 			result.Path = ""
 		}
 		if !shouldPathBeIgnored(urlPath) {
-			result.Path = path.Join(result.Path, urlPath)
+			result.Path = path.Join(result.Path, pathUrl.Path)
+			result.RawQuery = pathUrl.RawQuery
 		}
 	}
 

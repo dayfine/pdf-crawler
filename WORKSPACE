@@ -28,9 +28,20 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_rules_dependencies", "go_register_to
 go_rules_dependencies()
 go_register_toolchains()
 
-load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 gazelle_dependencies()
 
+# Go dependencies.
+#
+# Add or update repos using Gazelle:
+# https://github.com/bazelbuild/bazel-gazelle#update-repos
+
+go_repository(
+    name = "com_github_google_uuid",
+    build_file_generation = "on",
+    commit = "c2e93f3ae59f2904160ceaab466009f965df46d6",
+    importpath = "github.com/google/uuid",
+)
 
 # ================================================================
 # Protobuf extensions
