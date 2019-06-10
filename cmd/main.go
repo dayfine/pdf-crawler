@@ -11,7 +11,6 @@ func main() {
 	depth := flag.Int64("depth", 5, "Specify the level of depth to crawl through")
 	followForeignHosts := flag.Bool("foreign", false, "Whether to visit hosts other than the one for initally specified URL")
 	saveDir := flag.String("dir", "~/Downloads", "Specify where to save the downloaded files")
-	slient := flag.Bool("slient", true, "If false, print a list of URL processed at the end")
 
 	flag.Parse()
 
@@ -25,7 +24,4 @@ func main() {
 		InputUrl: *inputUrl,
 		Depth:    *depth,
 	})
-	if !*slient {
-		pdfCrawler.PrintAllProcessed()
-	}
 }

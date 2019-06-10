@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -26,7 +25,19 @@ type CrawlerOptions struct {
 
 type Crawler interface {
 	Crawl(param CrawlParameters)
-	PrintAllProcessed()
+}
+
+type Resource struct {
+	url  string
+	resp *http.Response
+}
+
+type CrawlerImpl struct {
+	options           CrawlerOptions
+	fetcher           UrlFetcher
+	processed         map[string]bool
+	ignoredFileExtMap map[string]bool
+	handlers          map[string]Handler
 }
 
 func NewCrawler(options CrawlerOptions) Crawler {
@@ -35,19 +46,16 @@ func NewCrawler(options CrawlerOptions) Crawler {
 	for _, ext := range ignoredFileExts {
 		ignoredFileExtMap[ext] = true
 	}
+	handlerMap := make(map[string]Handler)
+	handlerMap["pdf"] = NewPdfFileDownloadHandler(options.SaveDir)
+
 	return &CrawlerImpl{
 		options,
 		NewUrlFetcher(),
 		processedMap,
 		ignoredFileExtMap,
+		handlerMap,
 	}
-}
-
-type CrawlerImpl struct {
-	options           CrawlerOptions
-	fetcher           UrlFetcher
-	processed         map[string]bool
-	ignoredFileExtMap map[string]bool
 }
 
 func (c *CrawlerImpl) Crawl(param CrawlParameters) {
@@ -55,26 +63,31 @@ func (c *CrawlerImpl) Crawl(param CrawlParameters) {
 		return
 	}
 
-	resp, err := c.fetcher.Fetch(param.InputUrl)
+	res, err := c.fetcher.Fetch(param.InputUrl)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	contentType := getContetType(resp)
-	fmt.Printf("URL: [%s], CT: [%s]\n", param.InputUrl, contentType)
-	if contentType == "application/pdf" {
-		fmt.Println("Should download it here / Call handler")
-		return
-	} else if !isWebpage(contentType) {
-		return
-	}
 
-	for _, url := range getUrls(param.InputUrl, resp) {
-		crawlParam := CrawlParameters{
-			InputUrl: url,
-			Depth:    param.Depth - 1,
+	c.handleResource(res)
+	if isWebpage(res) {
+		for _, url := range getUrls(res) {
+			crawlParam := CrawlParameters{
+				InputUrl: url,
+				Depth:    param.Depth - 1,
+			}
+			c.Crawl(crawlParam)
 		}
-		c.Crawl(crawlParam)
+	}
+}
+
+func (c *CrawlerImpl) handleResource(res *Resource) {
+	if isPdf(res) {
+		err := c.handlers["pdf"].Handle(res)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 	}
 }
 
@@ -92,15 +105,8 @@ func (c *CrawlerImpl) shouldProcessUrl(url string) bool {
 	return true
 }
 
-func (c *CrawlerImpl) PrintAllProcessed() {
-	fmt.Println("Printing All URLs Processed")
-	for url, _ := range c.processed {
-		fmt.Println(url)
-	}
-}
-
-func getUrls(url string, resp *http.Response) []string {
-	tokenizer := html.NewTokenizer(resp.Body)
+func getUrls(res *Resource) []string {
+	tokenizer := html.NewTokenizer(res.resp.Body)
 	var urls []string
 	for {
 		token_type := tokenizer.Next()
@@ -114,7 +120,7 @@ func getUrls(url string, resp *http.Response) []string {
 		switch token_type {
 		case html.StartTagToken, html.SelfClosingTagToken:
 			if path := getPath(tokenizer.Token()); path != "" {
-				urls = append(urls, toUrl(url, path))
+				urls = append(urls, toUrl(res.url, path))
 			}
 		}
 	}
@@ -130,11 +136,17 @@ func getPath(token html.Token) string {
 	return ""
 }
 
-func getContetType(resp *http.Response) string {
-	ct := resp.Header.Get("Content-Type")
+func getContetType(res *Resource) string {
+	ct := res.resp.Header.Get("Content-Type")
 	return strings.Split(ct, ";")[0]
 }
 
-func isWebpage(contentType string) bool {
+func isWebpage(res *Resource) bool {
+	contentType := getContetType(res)
 	return contentType == "text/html" || strings.Contains(contentType, "text/html")
+}
+
+func isPdf(res *Resource) bool {
+	contentType := getContetType(res)
+	return contentType == "application/pdf" || strings.Contains(res.url, ".pdf")
 }

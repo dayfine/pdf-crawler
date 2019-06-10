@@ -6,7 +6,7 @@ import (
 
 type UrlFetcher interface {
 	// Returns slice of URLs on the page of requested URL.
-	Fetch(url string) (*http.Response, error)
+	Fetch(url string) (*Resource, error)
 }
 
 func NewUrlFetcher() UrlFetcher {
@@ -17,13 +17,14 @@ func NewUrlFetcher() UrlFetcher {
 type PlainUrlFetcher struct {
 }
 
-func (f *PlainUrlFetcher) Fetch(url string) (*http.Response, error) {
+func (f *PlainUrlFetcher) Fetch(url string) (*Resource, error) {
 	// TODO(dayfine): use channel / go routine
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
-	return resp, nil
+
+	return &Resource{url, resp}, nil
 }
 
 // A UrlFetcher that finds URLs by rendering any JavaScript.
